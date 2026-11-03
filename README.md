@@ -1,136 +1,62 @@
-# pixel-gemini
+# Pixel Gemini — Telegram bot + Google OAuth
 
-**Pixel 10 Pro Google One Gemini Offer Bot – Telegram Interface**
+A single Flask web service hosts the website, Google OAuth callback, and Telegram webhook. It is designed to minimize Render services: one **Free Web Service**, no Background Worker and no database.
 
-A Replit-hosted Telegram bot that simulates a Google Pixel 10 Pro (Android 16)
-device, logs into a user-supplied Gmail account, and retrieves the
-**12-month free Gemini Pro** activation link from Google One.
+## Render deployment
 
----
+1. Create a Render Web Service from this repository and choose branch `render-free-telegram-webhook`.
+2. Use the included `render.yaml` Blueprint settings, or set:
+   - Build: `pip install -r requirements.txt`
+   - Start: `gunicorn app:app --workers 1 --threads 4 --timeout 120`
+3. In Render → Environment, set:
+   - `GOOGLE_CLIENT_ID`: Google OAuth Web client ID
+   - `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
+   - `GOOGLE_REDIRECT_URI`: `https://YOUR-SERVICE.onrender.com/oauth2callback`
+   - `TELEGRAM_BOT_TOKEN`: token from BotFather
+   - `FLASK_SECRET_KEY`: long random secret (Render can generate it)
+   - `TELEGRAM_WEBHOOK_SECRET`: random secret containing only letters, digits, underscores or hyphens
+4. In Google Cloud Console → Google Auth Platform → Clients, add the exact `GOOGLE_REDIRECT_URI` above as an Authorized redirect URI. It must match exactly.
+5. After deployment, set the Telegram webhook. Replace the placeholders and run this command in a terminal (do not post the bot token or webhook secret in chat):
 
-## Project Structure
+   ```bash
+   curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
+     -d "url=https://YOUR-SERVICE.onrender.com/telegram/webhook" \
+     -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
+   ```
 
-```
-pixel-gemini/
-├── main.py               # Telegram bot entry point
-├── device_simulator.py   # Android Pixel 10 Pro device simulation
-├── google_automation.py  # Google One login and offer detection
-├── config.py             # Configuration and constants
-├── requirements.txt      # Python dependencies
-└── README.md             # This file
-```
+6. Open the website and test Google login. Then open the bot in a private Telegram chat and send `/start`, `/login`, `/status`, and `/check_offer`.
 
----
+## Commands
 
-## Features
+- `/start` — show help
+- `/login` — create a short-lived signed OAuth state and send the official Google authorization URL
+- `/status` — show whether an account is linked in the current process
+- `/logout` — clear the in-memory link
+- `/check_offer` — explain how to check offers on Google's official site
 
-| Feature | Details |
-|---|---|
-| 📱 Device simulation | Pixel 10 Pro (Android 16) with unique IMEI, Android ID, and user-agent per session |
-| 🤖 Telegram bot | `/start`, `/login`, `/check_offer`, `/get_link`, `/status` commands |
-| 🔐 Gmail login | Selenium-based Google account authentication |
-| 💳 Offer detection | Scans Google One for the 12-month Gemini Pro offer and extracts the activation link |
-| 🔄 Session management | In-memory per-user sessions; passwords deleted from chat on capture |
+## Free-tier limitations
 
----
+- Render Free Web Services can spin down when idle; the first webhook or page request after inactivity may be delayed.
+- This configuration intentionally uses one Gunicorn worker because account-link status is held in process memory. Deploy/restart or sleep/wake can clear that status. The OAuth success notification is sent to Telegram when the callback completes, but `/status` is not durable across restarts.
+- This design has no database and does not persist Google access or refresh tokens.
+- For durable account-link status or consistently fast bot responses, use a persistent database and an always-on worker/service plan.
 
-## Setup on Replit
+## Security and scope
 
-### 1. Fork / import this repository
+- Google login uses the official OAuth 2.0 / OpenID Connect flow and requests only `openid`, `email`, and `profile`.
+- The bot never asks for Google passwords or one-time codes.
+- OAuth state for Telegram linking is signed and expires after 10 minutes. Telegram webhook requests are checked using Telegram's secret-token header.
+- The app stores only the verified email in process memory. Google OAuth tokens are not persisted.
+- This app cannot verify personal Google One / Gemini promotion eligibility or retrieve private redemption links through the basic profile API. Check current offers directly at https://one.google.com/.
+- No password-based browser automation, CAPTCHA bypass, device spoofing, or private-page scraping is included.
 
-Open [Replit](https://replit.com) and create a new Repl from this GitHub repo.
+## Local development
 
-### 2. Create a Telegram Bot
-
-1. Open Telegram and search for **@BotFather**.
-2. Send `/newbot` and follow the prompts.
-3. Copy the API token you receive (looks like `123456:ABC-DEF…`).
-
-### 3. Set the environment variable
-
-In the Replit sidebar click **Secrets** (🔒) and add:
-
-| Key | Value |
-|---|---|
-| `TELEGRAM_BOT_TOKEN` | Your token from BotFather |
-
-### 4. Install dependencies
+Set the environment variables above, then:
 
 ```bash
 pip install -r requirements.txt
+python app.py
 ```
 
-Replit runs this automatically on first start if you use a `pyproject.toml`
-or if the Run button is configured to execute `pip install` first.
-
-### 5. Run the bot
-
-Click **Run** in Replit, or execute:
-
-```bash
-python main.py
-```
-
-The bot will start polling for Telegram updates.
-
----
-
-## Usage
-
-| Command | Description |
-|---|---|
-| `/start` | Show welcome message and command list |
-| `/login` | Enter Gmail email and password (two-step conversation) |
-| `/check_offer` | Simulate device, log in, and search for the Gemini Pro offer |
-| `/get_link` | Retrieve the last captured offer link |
-| `/status` | View current session info and device profile |
-
-### Typical flow
-
-```
-You: /start
-Bot: Welcome…
-
-You: /login
-Bot: Please enter your Gmail address:
-
-You: user@gmail.com
-Bot: Email received. Now enter your password:
-
-You: ••••••••
-Bot: ✅ Credentials saved. New Pixel 10 Pro device profile created…
-
-You: /check_offer
-Bot: ⏳ Launching device simulator…
-Bot: 🎉 Gemini Pro Offer Found! 🔗 https://one.google.com/…
-```
-
----
-
-## Technical Notes
-
-- **Headless Chrome** is used via Selenium with mobile emulation matching
-  the Pixel 10 Pro screen dimensions (390 × 844, pixel ratio 3.0).
-- A new **IMEI**, **Android ID**, and **Chrome version patch** are generated
-  for every session using the `device_simulator.py` module.
-- The **user agent** keeps the Pixel 10 Pro identity constant while varying
-  the Chrome patch version and Android ID to reduce fingerprinting.
-- Credentials are stored **in memory only** and never written to disk.
-  The Telegram message containing the password is deleted immediately after
-  being read.
-
----
-
-## Requirements
-
-- Python 3.10+
-- Google Chrome / Chromium installed (Replit provides this)
-- `chromedriver` on PATH (managed automatically by `webdriver-manager`)
-
----
-
-## Disclaimer
-
-This project is provided for educational and personal use only.
-Automating Google account access may violate Google's Terms of Service.
-Use responsibly and only with accounts you own.
+For local webhook testing, use a public HTTPS tunnel and configure Telegram's webhook URL accordingly.

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101522">
+  <title>Pixel Gemini — Google Account</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="shell">
+    <nav class="topbar"><span class="brand-mark">✦</span><span>PIXEL GEMINI</span><span class="top-note">ACCOUNT PORTAL</span></nav>
+    <section class="hero">
+      <div class="eyebrow"><span class="dot"></span> SECURE GOOGLE CONNECTION</div>
+      <h1>Your account,<br><span>your control.</span></h1>
+      <p class="intro">Kết nối tài khoản Google an toàn bằng trang đăng nhập chính thức của Google. Website không bao giờ yêu cầu hoặc lưu mật khẩu Google của bạn.</p>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="notice {{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      {% if account %}
+        <div class="account-card">
+          {% if account.picture %}<img class="avatar" src="{{ account.picture }}" alt="Ảnh đại diện Google">{% else %}<div class="avatar placeholder">G</div>{% endif %}
+          <div class="account-info"><span class="muted">ĐÃ KẾT NỐI</span><strong>{{ account.name or account.email }}</strong><span>{{ account.email }}</span></div>
+          <form method="post" action="{{ url_for('logout') }}"><button class="button secondary" type="submit">Đăng xuất</button></form>
+        </div>
+      {% else %}
+        <a class="button primary" href="{{ url_for('login') }}" {% if not ready %}aria-disabled="true"{% endif %}>
+          <span class="google-g">G</span> Tiếp tục với Google <span class="arrow">↗</span>
+        </a>
+        {% if not ready %}<p class="config-hint">Chưa cấu hình OAuth. Hãy thêm GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI và FLASK_SECRET_KEY trên Render.</p>{% endif %}
+      {% endif %}
+      <div class="trust"><span>◈</span> OAuth 2.0 · OpenID Connect <span class="separator">/</span> Chỉ yêu cầu email và hồ sơ cơ bản</div>
+    </section>
+    <footer><span>PIXEL GEMINI</span><span>Không thu thập mật khẩu · Không vượt CAPTCHA</span></footer>
+  </main>
+</body>
+</html>
