@@ -18,7 +18,11 @@ app.config.update(
 CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "")
-SCOPES = ["openid", "email", "profile"]
+SCOPES = [
+    "openid",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
+]
 
 
 def oauth_ready():
