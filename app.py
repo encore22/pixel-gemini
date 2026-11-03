@@ -78,7 +78,7 @@ def oauth2callback():
 
     try:
         flow = make_flow(state=expected_state)
-        flow.fetch_token(authorization_response=request.url)
+        flow.fetch_token(authorization_response=REDIRECT_URI + '?' + request.query_string.decode('ascii'))
         response = requests.get(
             "https://openidconnect.googleapis.com/v1/userinfo",
             headers={"Authorization": f"Bearer {flow.credentials.token}"},
