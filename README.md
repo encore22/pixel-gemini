@@ -1,60 +1,41 @@
-# Pixel Gemini Telegram Bot
+# Pixel Gemini — standalone website
 
-A Telegram bot that links a Google account using the official Google OAuth 2.0
-authorization-code flow. It does **not** collect Google passwords, automate
-Google sign-in, spoof a device, or bypass CAPTCHA / account security.
+A Flask website that signs users in with Google's official OAuth 2.0 / OpenID Connect flow. No Telegram bot is required.
 
-## Commands
+## Features
+- Google sign-in using Google's official consent page
+- Requests only `openid`, `email`, and `profile`
+- Shows verified email and basic profile after login
+- Logout clears the local session
+- No Google passwords or verification codes are collected
+- No browser automation, CAPTCHA bypass, or private-page scraping
 
-- `/start` — show available commands
-- `/login` — receive a Google authorization link
-- `/status` — show whether an account is connected
-- `/logout` — disconnect the in-memory session
-- `/check_offer` — explain the current offer lookup limitation
+## Deploy on Render (free web service)
+1. Create a Render **Web Service** from this GitHub repository and select branch `web-oauth`.
+2. Use the settings in `render.yaml` (or configure manually): Build command `pip install -r requirements.txt`; Start command `gunicorn app:app`.
+3. After Render creates the service, copy its public HTTPS hostname, e.g. `https://your-service.onrender.com`.
+4. In Google Cloud Console → Google Auth Platform → Clients, edit your OAuth client (type **Web application**) and add this exact Authorized redirect URI: `https://your-service.onrender.com/oauth2callback`.
+5. In Render → Environment, set:
+   - `GOOGLE_CLIENT_ID`: OAuth client ID
+   - `GOOGLE_CLIENT_SECRET`: OAuth client secret
+   - `GOOGLE_REDIRECT_URI`: exactly the callback URI above
+   - `FLASK_SECRET_KEY`: long random secret (Render blueprint can generate it)
+6. Redeploy, open the Render URL, and test **Continue with Google**.
 
-## Configuration
+The redirect URI in Google Cloud and `GOOGLE_REDIRECT_URI` must match exactly. If the OAuth app is in Testing mode, add test accounts under **Audience → Test users**.
 
-Create a Google OAuth client in Google Cloud Console as a **Web application**.
-Add the exact public callback URL to its authorized redirect URIs:
-
-`https://YOUR_PUBLIC_HOST/oauth2callback`
-
-Configure these environment variables (Replit Secrets, for example):
-
-| Variable | Description |
-|---|---|
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token from BotFather |
-| `GOOGLE_CLIENT_ID` | OAuth web client ID |
-| `GOOGLE_CLIENT_SECRET` | OAuth web client secret |
-| `GOOGLE_REDIRECT_URI` | Exact HTTPS callback URL above |
-| `PORT` | Public app port, normally supplied by the hosting platform |
-
-The hosting platform must expose the Flask callback server publicly over HTTPS.
-The redirect URI configured in Google Cloud must match `GOOGLE_REDIRECT_URI`
-exactly. Add the Google OAuth consent-screen test users if the app is in Testing.
-
-## Run
-
+## Run locally
 ```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-python main.py
+python app.py
 ```
+Set `FLASK_SECRET_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` first. For local testing, configure a matching localhost redirect URI in Google Cloud.
 
-Open a private chat with the Telegram bot and run `/login`. Complete consent on
-Google's own page, then return to Telegram and run `/status`.
+## Scope and limitations
+This app verifies identity and displays basic Google profile information. It does not access Google One subscriptions, Gemini promotions, private account pages, or promotional eligibility. Google does not expose those details through the basic OpenID Connect scopes used here.
 
-## Important limitation
-
-The current bot only requests OpenID Connect profile scopes (`openid`, `email`,
-`profile`). Google does not provide a public API in these scopes for checking
-individual Google One / Gemini promotional eligibility or extracting redemption
-links. Therefore `/check_offer` directs users to Google One rather than scraping
-private pages. Do not request broad account access unless a documented Google API
-and a clear user-facing purpose require it.
-
-## Security notes
-
-- Google passwords and one-time codes are never sent to Telegram or this app.
-- OAuth state is checked on callback.
-- Account credentials are held in process memory only and are lost on restart.
-- Use HTTPS for the callback and keep the OAuth client secret private.
+## Session and privacy
+The app stores basic profile details in a signed, secure session cookie. OAuth access tokens are not persisted. Use HTTPS in production and keep the client secret private. Render's free service may spin down when idle; its ephemeral runtime is not intended for durable data storage.
